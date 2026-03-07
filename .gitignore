@@ -1,1 +1,3 @@
 .envS
+node_modules/
+.env
