@@ -1,8 +1,6 @@
 const Certificate = require("../models/Certificate");
-const fs = require("fs");
-const path = require("path");
 
-// 1. Get all certificates sorted by newest first
+// 1. Get all certificates
 exports.getCertificates = async (req, res) => {
   try {
     const certs = await Certificate.find().sort({ createdAt: -1 });
@@ -12,7 +10,7 @@ exports.getCertificates = async (req, res) => {
   }
 };
 
-// 2. Create a new certificate
+// 2. Create a new certificate (Cloudinary version)
 exports.createCertificate = async (req, res) => {
   try {
     if (!req.file) {
@@ -21,7 +19,7 @@ exports.createCertificate = async (req, res) => {
 
     const newCert = new Certificate({
       title: req.body.title,
-      image: `/uploads/${req.file.filename}`,
+      image: req.file.path, // لينك Cloudinary المباشر
       issueDate: req.body.issueDate
     });
 
@@ -40,24 +38,11 @@ exports.updateCertificate = async (req, res) => {
       return res.status(404).json({ message: "Certificate not found" });
     }
 
-    // Update title if provided
     if (req.body.title) cert.title = req.body.title;
     if (req.body.issueDate) cert.issueDate = req.body.issueDate;
 
-    // Handle image update
     if (req.file) {
-      // Delete the old image file from server
-      if (cert.image) {
-        const oldPath = path.join(__dirname, "..", cert.image);
-        if (fs.existsSync(oldPath)) {
-          try {
-            fs.unlinkSync(oldPath);
-          } catch (e) {
-            console.error("Old certificate image deletion failed");
-          }
-        }
-      }
-      cert.image = `/uploads/${req.file.filename}`;
+      cert.image = req.file.path; // تحديث للينك الجديد
     }
 
     const updatedCert = await cert.save();
@@ -67,7 +52,7 @@ exports.updateCertificate = async (req, res) => {
   }
 };
 
-// 4. Delete a certificate and its image
+// 4. Delete a certificate
 exports.deleteCertificate = async (req, res) => {
   try {
     const cert = await Certificate.findById(req.params.id);
@@ -75,20 +60,8 @@ exports.deleteCertificate = async (req, res) => {
       return res.status(404).json({ message: "Certificate not found" });
     }
 
-    // Delete image file from server
-    if (cert.image) {
-      const fullPath = path.join(__dirname, "..", cert.image);
-      if (fs.existsSync(fullPath)) {
-        try {
-          fs.unlinkSync(fullPath);
-        } catch (e) {
-          console.error("Certificate file deletion failed");
-        }
-      }
-    }
-
     await Certificate.findByIdAndDelete(req.params.id);
-    res.json({ message: "Certificate and image deleted successfully" });
+    res.json({ message: "Certificate deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: "Error deleting certificate: " + err.message });
   }

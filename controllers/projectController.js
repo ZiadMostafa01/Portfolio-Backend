@@ -1,7 +1,4 @@
 const Project = require("../models/Project");
-const fs = require("fs");
-const path = require("path");
-const sharp = require("sharp");
 
 // 1. Get all projects
 exports.getProjects = async (req, res) => {
@@ -13,24 +10,13 @@ exports.getProjects = async (req, res) => {
   }
 };
 
-// 2. Create a new project with High Quality Processing
+// 2. Create a new project (Cloudinary version)
 exports.createProject = async (req, res) => {
   try {
     const { title, description, githubLink, liveLink, skills, status } = req.body;
     
-    let imagePath = "";
-    if (req.file) {
-      // إنشاء اسم فريد بصيغة webp لأنها الأفضل في الجودة والحجم للمواقع
-      const filename = `project-${Date.now()}.webp`;
-      const outputPath = path.join(__dirname, "..", "uploads", filename);
-
-      // معالجة الصورة بأعلى إعدادات
-      await sharp(req.file.buffer)
-        .webp({ quality: 100, lossless: true }) // جودة 100% بدون فقدان بيانات
-        .toFile(outputPath);
-
-      imagePath = `/uploads/${filename}`;
-    }
+    // req.file.path هنا هو لينك الصورة المباشر من Cloudinary
+    const imagePath = req.file ? req.file.path : "";
 
     const skillsArray = typeof skills === "string" 
       ? skills.split(",").map(s => s.trim()) 
@@ -53,7 +39,7 @@ exports.createProject = async (req, res) => {
   }
 };
 
-// 3. Update project with High Quality Processing
+// 3. Update project (Cloudinary version)
 exports.updateProject = async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -68,29 +54,14 @@ exports.updateProject = async (req, res) => {
     }
 
     if (req.file) {
-      // مسح الصورة القديمة
-      if (project.image) {
-        const oldPath = path.join(__dirname, "..", project.image);
-        if (fs.existsSync(oldPath)) {
-          try { fs.unlinkSync(oldPath); } catch (e) { console.error("Old image deletion failed"); }
-        }
-      }
-
-      // معالجة الصورة الجديدة
-      const filename = `updated-${Date.now()}.webp`;
-      const outputPath = path.join(__dirname, "..", "uploads", filename);
-
-      await sharp(req.file.buffer)
-        .webp({ quality: 100, lossless: true })
-        .toFile(outputPath);
-
-      updateData.image = `/uploads/${filename}`;
+      // تحديث اللينك بـ لينك Cloudinary الجديد
+      updateData.image = req.file.path;
     }
 
     const updated = await Project.findByIdAndUpdate(
       req.params.id, 
       updateData, 
-      { returnDocument: 'after', runValidators: true }
+      { new: true, runValidators: true }
     );
 
     res.json(updated);
@@ -105,13 +76,7 @@ exports.deleteProject = async (req, res) => {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
 
-    if (project.image) {
-      const fullPath = path.join(__dirname, "..", project.image);
-      if (fs.existsSync(fullPath)) {
-        try { fs.unlinkSync(fullPath); } catch (e) { console.error("Image deletion failed"); }
-      }
-    }
-
+    // بنحذف السجل من MongoDB (الصورة بتفضل في Cloudinary كأرشيف)
     await Project.findByIdAndDelete(req.params.id);
     res.json({ message: "Project deleted successfully" });
   } catch (err) {
