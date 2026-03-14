@@ -13,7 +13,7 @@ exports.getProjects = async (req, res) => {
 // 2. Create a new project (Cloudinary version)
 exports.createProject = async (req, res) => {
   try {
-    const { title, description, githubLink, liveLink, skills, status } = req.body;
+    const { title, description, githubLink, liveLink, skills, type } = req.body;
     
     // req.file.path هنا هو لينك الصورة المباشر من Cloudinary
     const imagePath = req.file ? req.file.path : "";
@@ -23,11 +23,11 @@ exports.createProject = async (req, res) => {
       : (Array.isArray(skills) ? skills : []);
 
     const newProject = new Project({
+      type,
       title,
       description,
       githubLink,
       liveLink,
-      status,
       skills: skillsArray,
       image: imagePath
     });
